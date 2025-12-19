@@ -1,0 +1,5 @@
+{
+  "name": "MeetingFlow - 会议通知自动化助手",
+  "description": "为国企行政人员打造的“零出错、高效率”会议通知管理系统。支持智能通讯录、多模式会议配置、自动化模版引擎及RPA任务预览。",
+  "requestFramePermissions": []
+}
