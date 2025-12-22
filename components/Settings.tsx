@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Plus, Trash2, Save, Terminal, Building2, MessageSquare, Copy, Tag } from 'lucide-react';
+// Added X to the lucide-react imports
+import { Settings as SettingsIcon, Plus, Trash2, Save, Terminal, Building2, MessageSquare, Copy, Tag, Cpu, Clock, FolderEdit, X } from 'lucide-react';
 import { AppSettings, Template } from '../types';
 
 interface Props {
@@ -19,8 +20,13 @@ const Settings: React.FC<Props> = ({ settings, setSettings }) => {
     { label: '联系电话', value: '{{联系电话}}' },
     { label: '发布部门', value: '{{发布部门}}' },
     { label: '姓名', value: '{{姓名}}' },
+    { label: '姓', value: '{{姓}}' },
     { label: '职务', value: '{{职务}}' }
   ];
+
+  const updateSetting = (field: keyof AppSettings, value: any) => {
+    setSettings({ ...settings, [field]: value });
+  };
 
   const updateTemplate = (id: string, field: string, value: string) => {
     setSettings({
@@ -43,51 +49,93 @@ const Settings: React.FC<Props> = ({ settings, setSettings }) => {
     setSettings({ ...settings, templates: settings.templates.filter(t => t.id !== id) });
   };
 
+  const addDept = () => {
+    if (newDept && !settings.departments.includes(newDept)) {
+      updateSetting('departments', [...settings.departments, newDept]);
+      setNewDept('');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-      {/* 模板管理 */}
-      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <MessageSquare className="text-indigo-600" size={20} />
-            <h3 className="text-lg font-bold text-slate-800">通知模板自定义</h3>
-          </div>
-          <div className="flex space-x-2">
-            <button onClick={() => addTemplate('sms')} className="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100">+ 短信模板</button>
-            <button onClick={() => addTemplate('wechat')} className="text-xs font-bold px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">+ 微信模板</button>
+      {/* RPA 自动化配置部分 */}
+      <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 flex items-center space-x-3 bg-slate-50/50">
+          <Cpu className="text-blue-600" size={24} />
+          <h3 className="text-xl font-black text-slate-800 tracking-tight">RPA 自动化引擎配置</h3>
+        </div>
+        <div className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <FolderEdit size={16} className="text-blue-500" />
+                微信程序执行路径 (WeChat.exe)
+              </label>
+              <input 
+                type="text" 
+                value={settings.wechatPath}
+                onChange={(e) => updateSetting('wechatPath', e.target.value)}
+                placeholder="例如: C:\Program Files (x86)\Tencent\WeChat\WeChat.exe"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono text-sm"
+              />
+              <p className="text-[10px] text-slate-400 font-bold">RPA 桥接器将调用此路径启动并激活微信窗口进行操作。</p>
+            </div>
+            <div className="space-y-3">
+              <label className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Clock size={16} className="text-blue-500" />
+                自动填充防检测延时 (秒)
+              </label>
+              <div className="flex items-center space-x-4">
+                <div className="flex-1 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">最小值</span>
+                  <input type="number" value={settings.rpaDelayMin} onChange={(e) => updateSetting('rpaDelayMin', parseInt(e.target.value))} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">最大值</span>
+                  <input type="number" value={settings.rpaDelayMax} onChange={(e) => updateSetting('rpaDelayMax', parseInt(e.target.value))} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold">在此范围内随机等待，模拟真实人类打字与文件选择间隔。</p>
+            </div>
           </div>
         </div>
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      </section>
+
+      {/* 模板自定义部分 */}
+      <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center space-x-3">
+            <MessageSquare className="text-indigo-600" size={24} />
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">智能通知模板库</h3>
+          </div>
+          <div className="flex space-x-3">
+            <button onClick={() => addTemplate('sms')} className="text-xs font-black px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 border border-indigo-100 transition-all">+ 新增短信模板</button>
+            <button onClick={() => addTemplate('wechat')} className="text-xs font-black px-4 py-2 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 border border-blue-100 transition-all">+ 新增微信模板</button>
+          </div>
+        </div>
+        <div className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {settings.templates.map(t => (
-              <div key={t.id} className="p-4 border border-slate-100 rounded-2xl bg-slate-50 space-y-3 relative group">
-                <button onClick={() => removeTemplate(t.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 size={16} />
+              <div key={t.id} className="p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 space-y-4 relative group hover:border-blue-200 transition-all">
+                <button onClick={() => removeTemplate(t.id)} className="absolute top-6 right-6 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Trash2 size={20} />
                 </button>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${t.type === 'sms' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>
+                <div className="flex items-center space-x-3">
+                  <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${t.type === 'sms' ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'}`}>
                     {t.type}
                   </span>
-                  <input 
-                    value={t.name}
-                    onChange={e => updateTemplate(t.id, 'name', e.target.value)}
-                    className="bg-transparent font-bold text-slate-700 outline-none focus:ring-1 ring-blue-500 rounded px-1"
-                  />
+                  <input value={t.name} onChange={e => updateTemplate(t.id, 'name', e.target.value)} className="bg-transparent font-black text-slate-800 outline-none focus:text-blue-600 text-lg" />
                 </div>
                 <textarea 
-                  value={t.content}
-                  onChange={e => updateTemplate(t.id, 'content', e.target.value)}
-                  placeholder="请输入通知正文..."
-                  className="w-full h-32 p-3 text-sm border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  value={t.content} 
+                  onChange={e => updateTemplate(t.id, 'content', e.target.value)} 
+                  placeholder="在此输入模板正文，点击下方标签插入变量..." 
+                  className="w-full h-48 p-6 text-base font-medium border-0 rounded-[2rem] outline-none focus:ring-4 focus:ring-blue-500/10 bg-white shadow-inner custom-scrollbar" 
                 />
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-2">
                   {tags.map(tag => (
-                    <button 
-                      key={tag.value}
-                      onClick={() => updateTemplate(t.id, 'content', t.content + tag.value)}
-                      className="inline-flex items-center px-2 py-1 bg-white border border-slate-200 text-slate-500 rounded text-[10px] hover:border-blue-400 hover:text-blue-600 transition-all"
-                    >
-                      <Tag size={10} className="mr-1" />
+                    <button key={tag.value} onClick={() => updateTemplate(t.id, 'content', t.content + tag.value)} className="inline-flex items-center px-3 py-1.5 bg-white border border-slate-200 text-slate-500 rounded-xl text-xs font-bold hover:border-blue-500 hover:text-blue-600 hover:shadow-sm transition-all">
+                      <Tag size={12} className="mr-1.5" />
                       {tag.label}
                     </button>
                   ))}
@@ -98,82 +146,43 @@ const Settings: React.FC<Props> = ({ settings, setSettings }) => {
         </div>
       </section>
 
-      {/* 部门管理 */}
-      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center space-x-2">
-          <Building2 className="text-blue-600" size={20} />
-          <h3 className="text-lg font-bold text-slate-800">部门列表</h3>
+      {/* 组织部门管理 */}
+      <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 flex items-center space-x-3 bg-slate-50/50">
+          <Building2 className="text-emerald-600" size={24} />
+          <h3 className="text-xl font-black text-slate-800 tracking-tight">组织部门映射设置</h3>
         </div>
-        <div className="p-6">
-          <div className="flex flex-wrap gap-2 mb-4">
-            {settings.departments.map(d => (
-              <span key={d} className="inline-flex items-center px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium group">
-                {d}
-                <button onClick={() => {
-                  setSettings({ ...settings, departments: settings.departments.filter(dept => dept !== d) });
-                }} className="ml-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 size={14} />
+        <div className="p-8 space-y-6">
+          <div className="flex flex-wrap gap-3">
+            {settings.departments.map(dept => (
+              <div key={dept} className="flex items-center gap-2 px-5 py-2 bg-slate-100 text-slate-700 rounded-2xl font-black text-sm border border-slate-200 group">
+                {dept}
+                <button onClick={() => updateSetting('departments', settings.departments.filter(d => d !== dept))} className="text-slate-300 hover:text-red-500 transition-colors">
+                  <X size={14} />
                 </button>
-              </span>
+              </div>
             ))}
-          </div>
-          <div className="flex space-x-2 max-w-sm">
-            <input 
-              value={newDept}
-              onChange={e => setNewDept(e.target.value)}
-              placeholder="新增部门..." 
-              className="flex-1 px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button onClick={() => {
-              if (newDept && !settings.departments.includes(newDept)) {
-                setSettings({ ...settings, departments: [...settings.departments, newDept] });
-                setNewDept('');
-              }
-            }} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
-              <Plus size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <input 
+                value={newDept} 
+                onChange={e => setNewDept(e.target.value)} 
+                onKeyPress={e => e.key === 'Enter' && addDept()}
+                placeholder="新增部门名称..." 
+                className="px-5 py-2 border-2 border-dashed border-slate-200 rounded-2xl text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" 
+              />
+              <button onClick={addDept} className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600"><Plus size={20} /></button>
+            </div>
           </div>
         </div>
       </section>
-
-      {/* RPA 配置 */}
-      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center space-x-2">
-          <Terminal className="text-emerald-600" size={20} />
-          <h3 className="text-lg font-bold text-slate-800">RPA 执行引擎配置</h3>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">短信平台 Web 登录地址</label>
-            <input 
-              value={settings.smsUrl}
-              onChange={e => setSettings({...settings, smsUrl: e.target.value})}
-              placeholder="https://sms-platform.com/login"
-              className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">本地微信可执行文件路径</label>
-            <input 
-              value={settings.wechatPath}
-              onChange={e => setSettings({...settings, wechatPath: e.target.value})}
-              placeholder="C:\Program Files\Tencent\WeChat\WeChat.exe"
-              className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className="fixed bottom-8 right-8">
+      
+      <div className="fixed bottom-12 right-12 z-40">
         <button 
-          onClick={() => {
-            localStorage.setItem('mf_settings', JSON.stringify(settings));
-            alert('设置已保存！');
-          }}
-          className="flex items-center space-x-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-2xl shadow-blue-200 hover:bg-blue-700 transition-all hover:-translate-y-1 active:scale-95"
+          onClick={() => { localStorage.setItem('mf_settings', JSON.stringify(settings)); alert('系统设置已全量持久化成功！'); }} 
+          className="flex items-center space-x-3 px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-2xl hover:bg-slate-800 transition-all hover:-translate-y-1 active:scale-95 border border-slate-700"
         >
-          <Save size={20} />
-          <span>保存所有配置</span>
+          <Save size={24} />
+          <span>保存所有配置并生效</span>
         </button>
       </div>
     </div>

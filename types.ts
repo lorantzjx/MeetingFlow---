@@ -22,7 +22,7 @@ export interface Template {
   id: string;
   name: string;
   content: string;
-  type: 'wechat' | 'sms' | 'multi'; // 增加多会议聚合模板类型
+  type: 'wechat' | 'sms' | 'multi';
 }
 
 export interface Contact {
@@ -39,7 +39,10 @@ export interface ParticipantStatus {
   contactId: string;
   mode: ParticipantMode;
   replied: boolean;
-  isSent?: boolean; // 增加发送标记
+  isSent?: boolean;
+  // 针对个人的文件配置
+  useDefaultFiles: boolean;
+  customFiles: string[];
   procurementInfo?: {
     method: string;
     budget: string;
@@ -55,7 +58,7 @@ export interface MeetingTask {
   meetingLink?: string;
   contactPerson: string;
   contactPhone: string;
-  attachments: string[];
+  attachments: string[]; // 默认会议文件列表
   mode: MeetingMode;
   participants: ParticipantStatus[];
   status: 'draft' | 'sending' | 'completed';
