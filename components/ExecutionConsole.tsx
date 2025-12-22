@@ -3,18 +3,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Play, 
   Loader2,
-  Edit3,
   AlertCircle,
   SkipForward,
-  CheckCircle,
-  UserCheck,
   Calendar,
-  Building2,
-  Users,
   Check,
-  FileText
+  Copy,
+  MessageSquare,
+  Users as UsersIcon,
+  MessageCircle
 } from 'lucide-react';
-import { Contact, MeetingTask, Position, MeetingMode } from '../types';
+import { Contact, MeetingTask } from '../types';
 
 interface Props {
   tasks: MeetingTask[];
@@ -22,7 +20,6 @@ interface Props {
   contacts: Contact[];
 }
 
-// 语义化日期格式化工具 - 修正下午时间显示为 24 小时制
 const formatSemanticTime = (dateStr: string) => {
   if (!dateStr) return { full: "", period: "", dateOnly: "", timeOnly: "" };
   const date = new Date(dateStr);
@@ -34,23 +31,17 @@ const formatSemanticTime = (dateStr: string) => {
   else if (dayDiff === 1) datePart = "明天";
   else if (dayDiff === 2) datePart = "后天";
   else {
-    const weeks = ['日', '一', '二', '三', '四', '五', '六'];
-    datePart = `下周${weeks[date.getDay()]}`;
+    datePart = `${date.getMonth() + 1}月${date.getDate()}日`;
   }
 
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
   const hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const period = hours < 12 ? "上午" : "下午";
-  
-  // 修改点：直接使用 hours 实现 24 小时制（如下午 14:00）
   const timeFormatted = `${hours.toString().padStart(2, '0')}:${minutes}`;
   
   return {
-    full: `${datePart}（${month}月${day}日）${period}${timeFormatted}`,
-    period: period,
-    dateOnly: `${datePart}（${month}月${day}日）`,
+    full: `${datePart}${period}${timeFormatted}`,
+    dateOnly: `${datePart}`,
     timeOnly: timeFormatted
   };
 };
@@ -58,7 +49,6 @@ const formatSemanticTime = (dateStr: string) => {
 const ExecutionConsole: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [isRpaOperating, setIsRpaOperating] = useState(false);
-  const [bridgeConnected, setBridgeConnected] = useState(false);
   const [mode, setMode] = useState<'wechat' | 'sms'>('wechat');
   const [editableContent, setEditableContent] = useState('');
   const [sentLog, setSentLog] = useState<Record<string, boolean>>({});
@@ -79,21 +69,7 @@ const ExecutionConsole: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
         count: tks.length
       }))
       .filter(item => item.contact)
-      .sort((a, b) => a.count - b.count);
-  }, [tasks, contacts]);
-
-  const meetingGroups = useMemo(() => {
-    return tasks.filter(t => t.status !== 'completed').map(task => {
-      const depts: Record<string, Contact[]> = {};
-      task.participants.forEach(p => {
-        const c = contacts.find(contact => contact.id === p.contactId);
-        if (c) {
-          if (!depts[c.dept]) depts[c.dept] = [];
-          depts[c.dept].push(c);
-        }
-      });
-      return { task, depts };
-    });
+      .sort((a, b) => b.count - a.count);
   }, [tasks, contacts]);
 
   useEffect(() => {
@@ -102,76 +78,69 @@ const ExecutionConsole: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
     }
   }, [sortedQueue]);
 
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await fetch('http://127.0.0.1:5000/status');
-        setBridgeConnected(res.ok);
-      } catch { setBridgeConnected(false); }
-    };
-    check();
-    const timer = setInterval(check, 5000);
-    return () => clearInterval(timer);
-  }, []);
+  const currentItem = useMemo(() => {
+    return sortedQueue.find(q => q.contact.id === activeContactId);
+  }, [activeContactId, sortedQueue]);
+
+  const participantsNames = useMemo(() => {
+    if (!currentItem) return "";
+    return currentItem.tasks[0].participants
+      .map(p => contacts.find(c => c.id === p.contactId)?.name)
+      .filter(Boolean)
+      .join(';');
+  }, [currentItem, contacts]);
 
   useEffect(() => {
-    const current = sortedQueue.find(q => q.contact.id === activeContactId);
-    if (!current) return;
+    if (!currentItem) return;
 
-    const { contact, tasks: contactTasks } = current;
-    const timeInfo = formatSemanticTime(contactTasks[0].time);
-    const surname = contact.name.charAt(0); // 取姓名第一个字作为【姓】
-    const title = contact.position === Position.NONE ? '经理' : contact.position;
+    const { contact, tasks: contactTasks } = currentItem;
+    const t = contactTasks[0];
+    const tInfo = formatSemanticTime(t.time);
+    const surname = contact.name.charAt(0);
+    const title = contact.position || '经理';
 
-    if (contactTasks.length > 1) {
-      let content = `${surname}${title}您好，${timeInfo.dateOnly}${timeInfo.period}在${contactTasks[0].location}有两个评审，届时请您安排人员参加支持：\n`;
-      contactTasks.forEach((t, i) => {
-        const tInfo = formatSemanticTime(t.time);
-        const pStatus = t.participants.find(p => p.contactId === contact.id);
-        content += `${i + 1}、时间${tInfo.timeOnly}，“${t.subject}”评审${pStatus?.procurementInfo ? `，涉及${pStatus.procurementInfo.method}，预算${pStatus.procurementInfo.budget}万元` : ''}\n`;
-      });
-      setEditableContent(content.trim());
-    } else {
-      const t = contactTasks[0];
-      const tInfo = formatSemanticTime(t.time);
-      const pStatus = t.participants.find(p => p.contactId === contact.id);
-      
-      if (mode === 'wechat') {
-        let content = `${surname}${title}您好，${tInfo.full}在${t.location || '线上'}召开“${t.subject}”评审会议，届时请您安排人员参加支持。`;
-        if (contact.isProcurement && pStatus?.procurementInfo) {
-          content += `涉及招标采购，预算${pStatus.procurementInfo.budget}万元。`;
-        }
-        setEditableContent(content);
-      } else {
-        const smsContent = `您好！${tInfo.full}在${t.location || '线上'}召开“${t.subject}”评审会议，届时请您安排人员参加支持。(联系人：技术办-${t.contactPerson} ${t.contactPhone})`;
-        setEditableContent(smsContent);
-      }
+    let onlineInfo = "";
+    if (t.meetingId || t.meetingLink) {
+      onlineInfo = `参会方式为腾讯会议${t.meetingLink ? `，链接${t.meetingLink}` : ""}${t.meetingId ? `，ID：${t.meetingId}` : ""}`;
     }
-  }, [activeContactId, sortedQueue, mode]);
 
-  const currentItem = sortedQueue.find(q => q.contact.id === activeContactId);
-  const currentParticipant = currentItem?.tasks[0].participants.find(p => p.contactId === activeContactId);
-  const currentFiles = currentParticipant?.useDefaultFiles 
-    ? currentItem?.tasks[0].attachments || []
-    : currentParticipant?.customFiles || [];
+    if (mode === 'wechat') {
+      let content = `${surname}${title}您好，关于“${t.subject}”评审会议通知：\n【时间】${tInfo.full}\n`;
+      if (t.location) content += `【地点】${t.location}\n`;
+      if (onlineInfo) content += `【线上】${onlineInfo}\n`;
+      content += `参会人员：${participantsNames.replace(/;/g, '、')}\n届时请您安排人员参加支持，谢谢。`;
+      setEditableContent(content);
+    } else {
+      let content = `您好！${tInfo.full}${t.location ? `在${t.location}` : ""}召开“${t.subject}”评审会议，届时请您安排人员参加支持，谢谢！${onlineInfo} 参会人员：${participantsNames.replace(/;/g, '、')}。(联系人：技术办-张佳欣：3723/19200545192)`;
+      setEditableContent(content);
+    }
+  }, [currentItem, mode, participantsNames]);
 
   const triggerRpa = async () => {
-    if (!bridgeConnected || !currentItem) return;
+    if (!currentItem || mode !== 'wechat' || isRpaOperating) return;
+    
     setIsRpaOperating(true);
     try {
-      const endpoint = mode === 'wechat' ? 'send_wechat' : 'fill_sms_web';
-      const body = mode === 'wechat' 
-        ? { remark: currentItem.contact.wechatRemark, content: editableContent, files: currentFiles }
-        : { url: 'https://sms-platform.example.com', content: editableContent, phones: currentItem.contact.phone };
+      // 关键修复：确保传递的是 contact.wechatRemark 字段
+      const searchRemark = currentItem.contact.wechatRemark;
       
-      await fetch(`http://127.0.0.1:5000/${endpoint}`, {
+      const response = await fetch(`http://localhost:5000/send_wechat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ 
+          remark: searchRemark, 
+          content: editableContent 
+        })
       });
-      setSentLog(prev => ({ ...prev, [activeContactId!]: true }));
+      
+      const resData = await response.json();
+      if (resData.status === 'success') {
+        setSentLog(prev => ({ ...prev, [activeContactId!]: true }));
+      } else {
+        alert(`RPA 失败: ${resData.message}`);
+      }
     } catch (e) {
-      alert('RPA 执行失败');
+      alert("无法连接到 RPA 服务，请确保 bridge.py 正在运行且监听 5000 端口。");
     } finally {
       setIsRpaOperating(false);
     }
@@ -179,91 +148,110 @@ const ExecutionConsole: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
 
   const handleNext = () => {
     const idx = sortedQueue.findIndex(q => q.contact.id === activeContactId);
-    if (idx < sortedQueue.length - 1) {
-      setActiveContactId(sortedQueue[idx + 1].contact.id);
-    }
+    if (idx < sortedQueue.length - 1) setActiveContactId(sortedQueue[idx + 1].contact.id);
   };
 
   return (
-    <div className="flex h-full gap-6 overflow-hidden">
-      <div className="w-80 flex flex-col gap-4 shrink-0 overflow-hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
-        <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-2">
-          <Calendar size={18} className="text-blue-600" />
-          发送清单看板
+    <div className="flex h-full gap-8 overflow-hidden">
+      <div className="w-80 flex flex-col gap-6 shrink-0 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-6 overflow-hidden">
+        <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 px-2">
+          <Calendar size={22} className="text-blue-600" />
+          待发送队列
         </h3>
-        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
-          {meetingGroups.map(({ task, depts }) => (
-            <div key={task.id} className="space-y-3">
-              <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">会议任务</p>
-                <p className="text-xs font-bold text-slate-700 truncate">{task.subject}</p>
+        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 px-1">
+          {sortedQueue.map(item => (
+            <div 
+              key={item.contact.id} 
+              onClick={() => setActiveContactId(item.contact.id)}
+              className={`p-5 rounded-2xl cursor-pointer transition-all border-2 ${
+                activeContactId === item.contact.id 
+                ? 'bg-blue-600 border-blue-500 text-white shadow-lg' 
+                : 'bg-slate-50 border-slate-50 hover:border-blue-200'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-black text-lg truncate pr-2">{item.contact.name}</span>
+                {sentLog[item.contact.id] && <Check size={18} className={activeContactId === item.contact.id ? 'text-white' : 'text-emerald-500'} />}
               </div>
-              {Object.entries(depts).map(([deptName, deptContacts]) => (
-                <div key={deptName} className="pl-2 space-y-1">
-                  <div className="flex items-center gap-2 text-slate-400 mb-1">
-                    <Building2 size={12} />
-                    <span className="text-[10px] font-bold">{deptName}</span>
-                  </div>
-                  {deptContacts.map(c => {
-                    const isActive = activeContactId === c.id;
-                    return (
-                      <div key={c.id} onClick={() => setActiveContactId(c.id)} className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all ${isActive ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-50 text-slate-600'}`}>
-                        <span className="text-xs font-medium">{c.name}</span>
-                        {sentLog[c.id] && <Check size={12} className={isActive ? 'text-white' : 'text-emerald-500'} />}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+              <p className={`text-[10px] font-bold uppercase tracking-widest opacity-70 ${activeContactId === item.contact.id ? 'text-blue-100' : 'text-slate-400'}`}>
+                {item.contact.dept} · {item.tasks.length}条待发
+              </p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 bg-slate-900 rounded-[2.5rem] shadow-2xl flex flex-col border border-slate-800 relative overflow-hidden">
-        {!bridgeConnected && <div className="absolute inset-0 z-50 bg-slate-900/95 flex flex-col items-center justify-center text-white p-8"><AlertCircle size={48} className="text-red-500 mb-4" /><h3 className="text-xl font-bold">RPA 未连接</h3></div>}
+      <div className="flex-1 bg-slate-900 rounded-[3rem] shadow-2xl flex flex-col overflow-hidden border-8 border-slate-800">
         {currentItem ? (
-          <div className="flex-1 p-12 overflow-y-auto custom-scrollbar">
-            <div className="max-w-3xl mx-auto space-y-8">
-              <div className="bg-slate-800 p-8 rounded-[2rem] border border-slate-700">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-black">{currentItem.contact.name.charAt(0)}</div>
+          <div className="flex-1 p-10 overflow-y-auto custom-scrollbar">
+            <div className="max-w-4xl mx-auto space-y-8">
+              <div className="bg-slate-800/80 p-8 rounded-[2.5rem] border border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-lg">
+                    {currentItem.contact.name.charAt(0)}
+                  </div>
                   <div>
-                    <h4 className="text-white text-xl font-bold">{currentItem.contact.name} ({currentItem.contact.wechatRemark})</h4>
-                    <p className="text-slate-500 text-sm">部门：{currentItem.contact.dept}</p>
+                    <h4 className="text-white text-2xl font-black">{currentItem.contact.name}</h4>
+                    <p className="text-slate-500 text-sm font-bold mt-1">
+                      微信备注：<span className="text-blue-400 font-black">{currentItem.contact.wechatRemark}</span> | 手机：{currentItem.contact.phone}
+                    </p>
                   </div>
                 </div>
-                
-                {/* 文件预览 */}
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">待发送文件清单</p>
-                  <div className="flex flex-wrap gap-2">
-                    {currentFiles.map(f => (
-                      <div key={f} className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 rounded-lg text-xs text-blue-300 border border-blue-900/30">
-                        <FileText size={14} />
-                        {f}
-                      </div>
-                    ))}
-                    {currentFiles.length === 0 && <span className="text-xs text-slate-600 italic">无附件</span>}
-                  </div>
+                <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-700">
+                  <button onClick={() => setMode('wechat')} className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${mode === 'wechat' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                    <MessageCircle size={14}/> 微信模式
+                  </button>
+                  <button onClick={() => setMode('sms')} className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${mode === 'sms' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+                    <MessageSquare size={14}/> 短信模式
+                  </button>
                 </div>
               </div>
 
-              <textarea value={editableContent} onChange={e => setEditableContent(e.target.value)} className="w-full h-72 bg-slate-800/40 border border-slate-700 rounded-[2rem] p-10 text-slate-100 text-xl outline-none" />
-
-              <div className="grid grid-cols-2 gap-6">
-                <button onClick={triggerRpa} className="h-20 bg-blue-600 text-white rounded-[1.5rem] font-bold text-xl flex items-center justify-center gap-3">
-                  {isRpaOperating ? <Loader2 className="animate-spin" /> : <Play size={24} />}
-                  执行微信填充
-                </button>
-                <button onClick={handleNext} className="h-20 bg-slate-800 text-white rounded-[1.5rem] font-bold text-xl flex items-center justify-center gap-3">
-                  <SkipForward size={24} />
-                  跳过此人
-                </button>
-              </div>
+              {mode === 'wechat' ? (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <div className="flex items-center justify-between px-2">
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest">微信通知正文 (RPA 将精准搜索备注：{currentItem.contact.wechatRemark})</label>
+                  </div>
+                  <textarea 
+                    value={editableContent} 
+                    onChange={e => setEditableContent(e.target.value)} 
+                    className="w-full h-80 bg-slate-800/40 border-2 border-slate-700 rounded-[2.5rem] p-8 text-slate-100 text-xl font-bold leading-relaxed outline-none focus:border-blue-500 transition-all custom-scrollbar" 
+                  />
+                  <div className="grid grid-cols-2 gap-6 pt-4">
+                    <button 
+                      onClick={triggerRpa} 
+                      disabled={isRpaOperating}
+                      className="h-20 bg-blue-600 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-4 hover:bg-blue-500 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                    >
+                      {isRpaOperating ? <Loader2 className="animate-spin" size={28} /> : <Play size={28} />}
+                      {isRpaOperating ? '自动化执行中...' : '查找备注并粘贴'}
+                    </button>
+                    <button onClick={handleNext} className="h-20 bg-slate-800 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-4 hover:bg-slate-700 transition-all shadow-lg">
+                      <SkipForward size={28} />
+                      跳过/下一个
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* 短信模式保持原样 */}
+                  <div className="bg-slate-800/40 p-10 rounded-[2.5rem] border border-slate-700">
+                    <p className="text-slate-400 font-bold mb-4">短信通知内容：</p>
+                    <p className="text-white text-lg leading-relaxed">{editableContent}</p>
+                  </div>
+                  <button onClick={handleNext} className="w-full h-20 bg-slate-800 text-white rounded-3xl font-black text-xl flex items-center justify-center gap-4 hover:bg-slate-700 transition-all">
+                    <SkipForward size={28} /> 处理完毕，下一个
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-600 space-y-6">
+             <AlertCircle size={80} className="opacity-10" />
+             <p className="text-3xl font-black opacity-30">发送队列已清空</p>
+          </div>
+        )}
       </div>
     </div>
   );
