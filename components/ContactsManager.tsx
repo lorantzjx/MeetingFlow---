@@ -8,16 +8,16 @@ import {
   Edit3, 
   Check
 } from 'lucide-react';
-import { Contact, Position } from '../types';
-import { POSITIONS } from '../constants';
+import { Contact } from '../types';
 
 interface Props {
   contacts: Contact[];
   setContacts: React.Dispatch<React.SetStateAction<Contact[]>>;
   departments: string[];
+  positions: string[];
 }
 
-const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments }) => {
+const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments, positions }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -35,13 +35,13 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments }
       name: formData.get('name') as string,
       dept: formData.get('dept') as string,
       phone: formData.get('phone') as string,
-      position: formData.get('position') as Position,
+      position: formData.get('position') as string,
       wechatRemark: formData.get('wechatRemark') as string,
       isProcurement: formData.get('isProcurement') === 'on'
     };
 
     if (editingContact) {
-      setContacts(prev => prev.map(c => c.id === editingContact.id ? { ...c, ...contactData } : c));
+      setContacts(prev => prev.map(c => c.id === editingContact.id ? { ...c, ...contactData } as Contact : c));
     } else {
       setContacts(prev => [...prev, { ...contactData as Contact, id: Math.random().toString(36).substr(2, 9) }]);
     }
@@ -139,7 +139,6 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments }
         </div>
       </div>
 
-      {/* Contact Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -165,13 +164,13 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments }
               <div className="space-y-1">
                 <label className="text-sm font-semibold text-slate-700">职务称呼</label>
                 <div className="flex flex-wrap gap-2">
-                  {POSITIONS.map(p => (
+                  {positions.map(p => (
                     <label key={p} className="cursor-pointer">
                       <input 
                         type="radio" 
                         name="position" 
                         value={p} 
-                        defaultChecked={editingContact?.position === p || (!editingContact && p === Position.NONE)} 
+                        defaultChecked={editingContact?.position === p || (!editingContact && p === '无')} 
                         className="peer hidden" 
                       />
                       <span className="px-4 py-1.5 border rounded-full text-sm font-medium peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all">

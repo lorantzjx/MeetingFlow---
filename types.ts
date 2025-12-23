@@ -1,12 +1,4 @@
 
-export enum Position {
-  ZONG = '总',
-  GONG = '工',
-  CHU = '处',
-  BU = '部',
-  NONE = '无'
-}
-
 export enum MeetingMode {
   OFFLINE = '纯线下',
   ONLINE = '纯线上',
@@ -30,7 +22,7 @@ export interface Contact {
   name: string;
   dept: string;
   phone: string;
-  position: Position;
+  position: string; // 修改为 string 支持动态增加
   wechatRemark: string;
   isProcurement: boolean;
 }
@@ -40,7 +32,6 @@ export interface ParticipantStatus {
   mode: ParticipantMode;
   replied: boolean;
   isSent?: boolean;
-  // 针对个人的文件配置
   useDefaultFiles: boolean;
   customFiles: string[];
   procurementInfo?: {
@@ -58,7 +49,7 @@ export interface MeetingTask {
   meetingLink?: string;
   contactPerson: string;
   contactPhone: string;
-  attachments: string[]; // 默认会议文件列表
+  attachments: string[];
   mode: MeetingMode;
   participants: ParticipantStatus[];
   status: 'draft' | 'sending' | 'completed';
@@ -67,6 +58,7 @@ export interface MeetingTask {
 
 export interface AppSettings {
   departments: string[];
+  positions: string[]; // 新增：动态职务列表
   rpaDelayMin: number;
   rpaDelayMax: number;
   smsUrl: string;

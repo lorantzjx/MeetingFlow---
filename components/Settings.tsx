@@ -1,7 +1,24 @@
 
 import React, { useState } from 'react';
-// Added X to the lucide-react imports
-import { Settings as SettingsIcon, Plus, Trash2, Save, Terminal, Building2, MessageSquare, Copy, Tag, Cpu, Clock, FolderEdit, X } from 'lucide-react';
+import { 
+  Settings as SettingsIcon, 
+  Plus, 
+  Trash2, 
+  Save, 
+  Terminal, 
+  Building2, 
+  MessageSquare, 
+  Copy, 
+  Tag, 
+  Cpu, 
+  Clock, 
+  FolderEdit, 
+  X,
+  UserCheck,
+  Search,
+  Hash,
+  Link as LinkIcon
+} from 'lucide-react';
 import { AppSettings, Template } from '../types';
 
 interface Props {
@@ -11,11 +28,15 @@ interface Props {
 
 const Settings: React.FC<Props> = ({ settings, setSettings }) => {
   const [newDept, setNewDept] = useState('');
+  const [newPosition, setNewPosition] = useState('');
+  const [positionSearch, setPositionSearch] = useState('');
   
   const tags = [
     { label: '时间', value: '{{时间}}' },
     { label: '主题', value: '{{主题}}' },
     { label: '地点', value: '{{地点}}' },
+    { label: '会议号', value: '{{会议号}}' },
+    { label: '会议链接', value: '{{会议链接}}' },
     { label: '联系人', value: '{{联系人}}' },
     { label: '联系电话', value: '{{联系电话}}' },
     { label: '发布部门', value: '{{发布部门}}' },
@@ -55,6 +76,17 @@ const Settings: React.FC<Props> = ({ settings, setSettings }) => {
       setNewDept('');
     }
   };
+
+  const addPosition = () => {
+    if (newPosition && !settings.positions.includes(newPosition)) {
+      updateSetting('positions', [...settings.positions, newPosition]);
+      setNewPosition('');
+    }
+  };
+
+  const filteredPositions = settings.positions.filter(p => 
+    p.toLowerCase().includes(positionSearch.toLowerCase())
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -98,6 +130,55 @@ const Settings: React.FC<Props> = ({ settings, setSettings }) => {
               <p className="text-[10px] text-slate-400 font-bold">在此范围内随机等待，模拟真实人类打字与文件选择间隔。</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* 职务称呼管理 - 新增模块 */}
+      <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center space-x-3">
+            <UserCheck className="text-amber-600" size={24} />
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">职务称呼定义 (CRUD)</h3>
+          </div>
+          <div className="relative w-48">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input 
+              type="text" 
+              placeholder="搜索职务..." 
+              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500"
+              value={positionSearch}
+              onChange={(e) => setPositionSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="p-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+            {filteredPositions.map(pos => (
+              <div key={pos} className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl group hover:border-amber-200 hover:bg-amber-50 transition-all">
+                <span className="text-sm font-bold text-slate-700">{pos}</span>
+                <button 
+                  onClick={() => updateSetting('positions', settings.positions.filter(p => p !== pos))}
+                  className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <input 
+                value={newPosition} 
+                onChange={e => setNewPosition(e.target.value)} 
+                onKeyPress={e => e.key === 'Enter' && addPosition()}
+                placeholder="新增职务..." 
+                className="w-full px-4 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-xs outline-none focus:border-amber-500 transition-all" 
+              />
+              <button onClick={addPosition} className="p-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600"><Plus size={18} /></button>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1.5 uppercase">
+            <Tag size={12} />
+            此列表将实时同步至“通讯录管理”中的职务单选区，建议保留“无”作为默认选项。
+          </p>
         </div>
       </section>
 

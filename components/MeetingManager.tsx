@@ -22,17 +22,22 @@ import {
   X,
   Download,
   FileUp,
-  CloudUpload
+  CloudUpload,
+  Link as LinkIcon,
+  Hash,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
-import { Contact, MeetingTask, MeetingMode, ParticipantMode, ParticipantStatus, Position } from '../types';
+import { Contact, MeetingTask, MeetingMode, ParticipantMode, ParticipantStatus } from '../types';
 
 interface Props {
   tasks: MeetingTask[];
   setTasks: React.Dispatch<React.SetStateAction<MeetingTask[]>>;
   contacts: Contact[];
+  positions: string[];
 }
 
-const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
+const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts, positions }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [selectedParticipants, setSelectedParticipants] = useState<ParticipantStatus[]>([]);
@@ -41,7 +46,6 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
   const [expandedDepts, setExpandedDepts] = useState<string[]>([]);
   const [expandedTaskDetails, setExpandedTaskDetails] = useState<string[]>([]);
 
-  // 表单状态
   const [subject, setSubject] = useState('');
   const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
@@ -49,7 +53,6 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
   const [meetingLink, setMeetingLink] = useState('');
   const [defaultAttachments, setDefaultAttachments] = useState<string[]>([]);
 
-  // 拖拽状态
   const [isDragging, setIsDragging] = useState(false);
 
   const groupedContacts = useMemo(() => {
@@ -81,9 +84,9 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
       id: editingTaskId || Math.random().toString(36).substr(2, 9),
       subject,
       time,
-      location: mode !== MeetingMode.ONLINE ? location : undefined,
-      meetingId: mode !== MeetingMode.OFFLINE ? meetingId : undefined,
-      meetingLink: mode !== MeetingMode.OFFLINE ? meetingLink : undefined,
+      location: (mode === MeetingMode.OFFLINE || mode === MeetingMode.MIXED) ? location : undefined,
+      meetingId: (mode === MeetingMode.ONLINE || mode === MeetingMode.MIXED) ? meetingId : undefined,
+      meetingLink: (mode === MeetingMode.ONLINE || mode === MeetingMode.MIXED) ? meetingLink : undefined,
       contactPerson: '技术办',
       contactPhone: '010-88886666',
       attachments: defaultAttachments,
@@ -137,13 +140,25 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
       } else {
         return [...prev, { 
           contactId, 
-          mode: mode === MeetingMode.MIXED ? ParticipantMode.OFFLINE : (mode === MeetingMode.ONLINE ? ParticipantMode.ONLINE : ParticipantMode.OFFLINE),
+          mode: mode === MeetingMode.ONLINE ? ParticipantMode.ONLINE : ParticipantMode.OFFLINE,
           replied: false,
           useDefaultFiles: true,
           customFiles: []
         }];
       }
     });
+  };
+
+  const switchParticipantMode = (contactId: string) => {
+    setSelectedParticipants(prev => prev.map(p => {
+      if (p.contactId === contactId) {
+        return {
+          ...p,
+          mode: p.mode === ParticipantMode.OFFLINE ? ParticipantMode.ONLINE : ParticipantMode.OFFLINE
+        };
+      }
+      return p;
+    }));
   };
 
   const toggleDeptSelection = (dept: string) => {
@@ -157,7 +172,7 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
       const missing = deptContacts.filter(c => !selectedParticipants.find(p => p.contactId === c.id));
       const newItems = missing.map(c => ({
         contactId: c.id,
-        mode: mode === MeetingMode.MIXED ? ParticipantMode.OFFLINE : (mode === MeetingMode.ONLINE ? ParticipantMode.ONLINE : ParticipantMode.OFFLINE),
+        mode: mode === MeetingMode.ONLINE ? ParticipantMode.ONLINE : ParticipantMode.OFFLINE,
         replied: false,
         useDefaultFiles: true,
         customFiles: []
@@ -166,7 +181,6 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
     }
   };
 
-  // 强化文件上传处理
   const processFiles = (files: FileList | null, isDefault: boolean, contactId?: string) => {
     if (!files) return;
     const fileNames = Array.from(files).map(f => f.name);
@@ -187,9 +201,7 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
   };
 
   const handleDownloadCheck = (fileName: string) => {
-    // 模拟下载检查逻辑
     alert(`正在对文件进行核验下载：${fileName}\n[模拟下载成功]`);
-    // 实际场景下会创建 a 标签触发下载
     const element = document.createElement("a");
     const file = new Blob(["会议文件模拟数据"], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
@@ -222,12 +234,12 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
   };
 
   const renderTaskParticipantsVisualization = (task: MeetingTask) => {
-    const taskDepts: Record<string, Contact[]> = {};
+    const taskDepts: Record<string, ParticipantStatus[]> = {};
     task.participants.forEach(p => {
       const contact = contacts.find(c => c.id === p.contactId);
       if (contact) {
         if (!taskDepts[contact.dept]) taskDepts[contact.dept] = [];
-        taskDepts[contact.dept].push(contact);
+        taskDepts[contact.dept].push(p);
       }
     });
 
@@ -238,20 +250,24 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
           参会部门及人员分布
         </p>
         <div className="space-y-3">
-          {Object.entries(taskDepts).map(([dept, deptParticipants]) => (
+          {Object.entries(taskDepts).map(([dept, pList]) => (
             <div key={dept} className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-700">{dept}</span>
-                <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md">{deptParticipants.length}人</span>
+                <span className="text-[10px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-md">{pList.length}人</span>
               </div>
               <div className="flex flex-wrap gap-1.5 pl-2 border-l-2 border-slate-200">
-                {deptParticipants.map(cp => (
-                  <div key={cp.id} className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-lg text-xs text-slate-600 shadow-sm">
-                    <User size={10} className="text-blue-500" />
-                    <span>{cp.name}</span>
-                    <span className="text-[10px] text-slate-400">({cp.position})</span>
-                  </div>
-                ))}
+                {pList.map(p => {
+                  const cp = contacts.find(c => c.id === p.contactId)!;
+                  return (
+                    <div key={cp.id} className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-lg text-xs text-slate-600 shadow-sm relative group">
+                      {p.mode === ParticipantMode.ONLINE ? <Video size={10} className="text-indigo-500" /> : <MapPin size={10} className="text-amber-500" />}
+                      <span>{cp.name}</span>
+                      <span className="text-[10px] text-slate-400">({cp.position})</span>
+                      {p.mode === ParticipantMode.ONLINE && <span className="absolute -top-2 -right-1 flex h-2 w-2 rounded-full bg-indigo-400"></span>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -308,10 +324,16 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
                     <Calendar size={14} className="mr-2 text-slate-400" />
                     <span>{task.time.replace('T', ' ')}</span>
                   </div>
-                  {task.location && (
+                  {(task.mode === MeetingMode.OFFLINE || task.mode === MeetingMode.MIXED) && task.location && (
                     <div className="flex items-center text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
                       <MapPin size={14} className="mr-2 text-slate-400" />
                       <span>{task.location}</span>
+                    </div>
+                  )}
+                  {(task.mode === MeetingMode.ONLINE || task.mode === MeetingMode.MIXED) && task.meetingId && (
+                    <div className="flex items-center text-sm font-bold text-slate-600 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
+                      <Hash size={14} className="mr-2" />
+                      <span>ID: {task.meetingId}</span>
                     </div>
                   )}
                 </div>
@@ -386,7 +408,7 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                       <label className="text-sm font-black text-slate-500 uppercase tracking-widest">会议全称</label>
                       <input className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all" value={subject} onChange={e => setSubject(e.target.value)} />
                     </div>
@@ -395,14 +417,27 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
                       <input type="datetime-local" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all" value={time} onChange={e => setTime(e.target.value)} />
                     </div>
                     {(mode === MeetingMode.OFFLINE || mode === MeetingMode.MIXED) && (
-                      <div className="space-y-2 md:col-span-2">
+                      <div className="space-y-2">
                         <label className="text-sm font-black text-slate-500 uppercase tracking-widest">会议地点</label>
                         <input className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all" value={location} onChange={e => setLocation(e.target.value)} />
                       </div>
                     )}
+                    {(mode === MeetingMode.ONLINE || mode === MeetingMode.MIXED) && (
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-sm font-black text-slate-500 uppercase tracking-widest">会议 ID (如：腾讯会议号)</label>
+                          <input className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-mono" value={meetingId} onChange={e => setMeetingId(e.target.value)} placeholder="000-000-000" />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <LinkIcon size={14} /> 入会链接
+                          </label>
+                          <input className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-mono text-sm" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meeting.tencent.com/..." />
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {/* 默认会议文件上传 - 强化版 */}
                   <div className="space-y-4 pt-4 border-t border-slate-100">
                     <label className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                       <FileText size={16} className="text-blue-600" />
@@ -453,7 +488,6 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
 
               {activeStep === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 h-full animate-in fade-in duration-300">
-                  {/* 通讯录选择 (强化部门勾选交互) */}
                   <div className="flex flex-col space-y-4">
                     <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center justify-between px-2">
                       <span>通讯录/组织架构</span>
@@ -468,7 +502,6 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
 
                         return (
                           <div key={dept} className="mb-6">
-                            {/* 显眼的部门勾选行 */}
                             <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all cursor-pointer group shadow-sm ${
                               isAllSelected 
                                 ? 'bg-blue-600 text-white shadow-blue-200 ring-2 ring-blue-500' 
@@ -507,22 +540,38 @@ const MeetingManager: React.FC<Props> = ({ tasks, setTasks, contacts }) => {
                     </div>
                   </div>
                   
-                  {/* 已选名单面板 */}
                   <div className="flex flex-col space-y-4">
                     <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest px-2">已选人员清单 ({selectedParticipants.length})</h4>
                     <div className="flex-1 overflow-y-auto border border-slate-100 rounded-[2.5rem] bg-blue-50/20 p-8 space-y-3 custom-scrollbar">
                       {selectedParticipants.map(p => {
                         const contact = contacts.find(c => c.id === p.contactId);
                         return contact ? (
-                          <div key={p.contactId} className="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm flex items-center justify-between animate-in zoom-in-95">
+                          <div key={p.contactId} className="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm flex items-center justify-between animate-in zoom-in-95 group/item">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-md">{contact.name.charAt(0)}</div>
+                              <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center font-black text-sm shadow-md ${p.mode === ParticipantMode.ONLINE ? 'bg-indigo-600' : 'bg-amber-500'}`}>
+                                {p.mode === ParticipantMode.ONLINE ? <Video size={16} /> : <MapPin size={16} />}
+                              </div>
                               <div>
                                 <p className="font-black text-slate-800 text-sm">{contact.name}</p>
                                 <p className="text-[10px] text-slate-400 font-bold">{contact.dept} · {contact.position}</p>
                               </div>
                             </div>
-                            <button onClick={() => toggleParticipant(p.contactId)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                            <div className="flex items-center gap-2">
+                              {mode === MeetingMode.MIXED && (
+                                <button 
+                                  onClick={() => switchParticipantMode(p.contactId)}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all border ${
+                                    p.mode === ParticipantMode.ONLINE 
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100' 
+                                      : 'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100'
+                                  }`}
+                                  title="切换参会方式"
+                                >
+                                  {p.mode === ParticipantMode.ONLINE ? '线上参会' : '线下参会'}
+                                </button>
+                              )}
+                              <button onClick={() => toggleParticipant(p.contactId)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                            </div>
                           </div>
                         ) : null;
                       })}
