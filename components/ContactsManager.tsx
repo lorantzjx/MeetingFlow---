@@ -8,7 +8,7 @@ import {
   Edit3, 
   Check
 } from 'lucide-react';
-import { Contact } from '../types';
+import { Contact } from '../types.ts';
 
 interface Props {
   contacts: Contact[];
@@ -49,9 +49,13 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments, 
     setEditingContact(null);
   };
 
-  const deleteContact = (id: string) => {
-    if (confirm('确定删除该联系人？')) {
-      setContacts(prev => prev.filter(c => c.id !== id));
+  // 修复：删除按钮点击没反应 BUG
+  const handleDeleteContact = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); 
+    e.preventDefault();
+    if (window.confirm('确定要从通讯录中删除该人员吗？此操作不可撤销。')) {
+      const newContacts = contacts.filter(c => c.id !== id);
+      setContacts([...newContacts]); // 强制触发引用更新
     }
   };
 
@@ -63,72 +67,72 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments, 
           <input 
             type="text" 
             placeholder="搜索姓名、部门或微信备注..." 
-            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none font-bold"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl transition-colors">
+          <button className="flex items-center space-x-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl transition-colors font-bold">
             <Upload size={18} />
-            <span className="font-medium">Excel 导入</span>
+            <span>Excel 导入</span>
           </button>
           <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95"
+            onClick={() => { setEditingContact(null); setIsModalOpen(true); }}
+            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95 font-black uppercase tracking-widest text-xs"
           >
             <UserPlus size={18} />
-            <span className="font-medium">新增人员</span>
+            <span>新增人员</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-500 text-sm uppercase">
+            <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
               <tr>
-                <th className="px-6 py-4 font-semibold">姓名</th>
-                <th className="px-6 py-4 font-semibold">所属部门</th>
-                <th className="px-6 py-4 font-semibold">职务称呼</th>
-                <th className="px-6 py-4 font-semibold">微信备注</th>
-                <th className="px-6 py-4 font-semibold">手机号</th>
-                <th className="px-6 py-4 font-semibold text-center">采购属性</th>
-                <th className="px-6 py-4 font-semibold text-right">操作</th>
+                <th className="px-6 py-5">姓名</th>
+                <th className="px-6 py-5">所属部门</th>
+                <th className="px-6 py-5">职务称呼</th>
+                <th className="px-6 py-5">微信备注</th>
+                <th className="px-6 py-5">手机号</th>
+                <th className="px-6 py-5 text-center">采购属性</th>
+                <th className="px-6 py-5 text-right">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredContacts.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-6 py-4 font-medium text-slate-900">{c.name}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs">
+                  <td className="px-6 py-5 font-black text-slate-900">{c.name}</td>
+                  <td className="px-6 py-5">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[11px] font-black uppercase tracking-tight">
                       {c.dept}
                     </span>
                   </td>
-                  <td className="px-6 py-4">{c.position}</td>
-                  <td className="px-6 py-4 text-blue-600 font-mono text-sm">{c.wechatRemark}</td>
-                  <td className="px-6 py-4">{c.phone}</td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-6 py-5 font-bold text-sm">{c.position}</td>
+                  <td className="px-6 py-5 text-blue-600 font-black text-sm">{c.wechatRemark}</td>
+                  <td className="px-6 py-5 font-medium tabular-nums text-slate-500">{c.phone}</td>
+                  <td className="px-6 py-5 text-center">
                     {c.isProcurement ? (
-                      <div className="inline-flex items-center justify-center w-6 h-6 bg-amber-100 text-amber-600 rounded-full">
-                        <Check size={14} strokeWidth={3} />
+                      <div className="inline-flex items-center justify-center px-2 py-1 bg-amber-100 text-amber-600 rounded-md text-[10px] font-black">
+                        采购类
                       </div>
-                    ) : '-'}
+                    ) : <span className="text-slate-200">/</span>}
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td className="px-6 py-5 text-right">
+                    <div className="flex items-center justify-end space-x-2">
                       <button 
                         onClick={() => { setEditingContact(c); setIsModalOpen(true); }}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                        className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                       >
-                        <Edit3 size={16} />
+                        <Edit3 size={18} />
                       </button>
                       <button 
-                        onClick={() => deleteContact(c.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        onClick={(e) => handleDeleteContact(e, c.id)}
+                        className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
@@ -140,29 +144,29 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments, 
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-100">
-              <h3 className="text-xl font-bold text-slate-800">
-                {editingContact ? '编辑联系人' : '新增联系人'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-100">
+              <h3 className="text-xl font-black text-slate-800">
+                {editingContact ? '编辑联系人资料' : '录入新人员'}
               </h3>
             </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-sm font-semibold text-slate-700">姓名</label>
-                  <input name="name" defaultValue={editingContact?.name} required className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">姓名</label>
+                  <input name="name" defaultValue={editingContact?.name} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm font-semibold text-slate-700">部门</label>
-                  <select name="dept" defaultValue={editingContact?.dept} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">部门</label>
+                  <select name="dept" defaultValue={editingContact?.dept} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold">
                     {departments.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">职务称呼</label>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">职务/称呼</label>
                 <div className="flex flex-wrap gap-2">
                   {positions.map(p => (
                     <label key={p} className="cursor-pointer">
@@ -173,7 +177,7 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments, 
                         defaultChecked={editingContact?.position === p || (!editingContact && p === '无')} 
                         className="peer hidden" 
                       />
-                      <span className="px-4 py-1.5 border rounded-full text-sm font-medium peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all">
+                      <span className="px-4 py-1.5 border border-slate-200 rounded-xl text-xs font-black peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all block">
                         {p}
                       </span>
                     </label>
@@ -182,33 +186,33 @@ const ContactsManager: React.FC<Props> = ({ contacts, setContacts, departments, 
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">微信备注 (RPA检索唯一凭据)</label>
-                <input name="wechatRemark" defaultValue={editingContact?.wechatRemark} required placeholder="例如: 采购部-李部长" className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">微信备注 (自动化检索唯一标识)</label>
+                <input name="wechatRemark" defaultValue={editingContact?.wechatRemark} required placeholder="例如: 技术办-张总" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-semibold text-slate-700">手机号</label>
-                <input name="phone" defaultValue={editingContact?.phone} required className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">手机号</label>
+                <input name="phone" defaultValue={editingContact?.phone} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
               </div>
 
-              <div className="flex items-center space-x-2 pt-2">
-                <input type="checkbox" name="isProcurement" id="isProc" defaultChecked={editingContact?.isProcurement} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                <label htmlFor="isProc" className="text-sm font-medium text-slate-700">属于采购类人员 (触发特定字段)</label>
+              <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                <input type="checkbox" name="isProcurement" id="isProc" defaultChecked={editingContact?.isProcurement} className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
+                <label htmlFor="isProc" className="text-xs font-black text-amber-700 uppercase tracking-widest">标记为采购类人员</label>
               </div>
 
-              <div className="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end space-x-3 mt-8 pt-6 border-t border-slate-100">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2 text-slate-500 font-semibold hover:bg-slate-50 rounded-xl"
+                  className="px-6 py-3 text-slate-400 font-black uppercase tracking-widest text-xs hover:bg-slate-50 rounded-xl transition-all"
                 >
                   取消
                 </button>
                 <button 
                   type="submit" 
-                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200"
+                  className="px-10 py-3 bg-blue-600 text-white font-black uppercase tracking-widest text-xs rounded-xl hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all active:scale-95"
                 >
-                  保存
+                  确认保存
                 </button>
               </div>
             </form>

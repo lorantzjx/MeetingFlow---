@@ -22,7 +22,7 @@ export interface Contact {
   name: string;
   dept: string;
   phone: string;
-  position: string; // 修改为 string 支持动态增加
+  position: string;
   wechatRemark: string;
   isProcurement: boolean;
 }
@@ -34,6 +34,7 @@ export interface ParticipantStatus {
   isSent?: boolean;
   useDefaultFiles: boolean;
   customFiles: string[];
+  templateId?: string; // 新增：个人专属模板覆盖
   procurementInfo?: {
     method: string;
     budget: string;
@@ -54,11 +55,12 @@ export interface MeetingTask {
   participants: ParticipantStatus[];
   status: 'draft' | 'sending' | 'completed';
   createdAt: number;
+  defaultTemplateId?: string; // 新增：会议默认模板
 }
 
 export interface AppSettings {
   departments: string[];
-  positions: string[]; // 新增：动态职务列表
+  positions: string[];
   rpaDelayMin: number;
   rpaDelayMax: number;
   smsUrl: string;
